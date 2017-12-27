@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.VisualBasic;
 using System.Threading.Tasks;
@@ -71,9 +72,10 @@ namespace KUPConverter
                                 { '\u00A1', '\u30D1' }, //パ from ¡
                                 { '\u00BF', '\u30D7' }, //プ from ¿
                             };
+                            Console.WriteLine("Replacing characters...");
                             for (int count = 0; count < editedList.Capacity; count++)
                             {
-                            //byte[] testDic = smtivDic.editedList[count];
+                            
                             byte[] editedDef_Bytes = Default.GetBytes(editedList[count]);
                             string editedDef_String = Default.GetString(editedDef_Bytes);
                             string editedDef_HW = "";
@@ -81,21 +83,41 @@ namespace KUPConverter
                             {
                                 foreach (char c in editedDef_Bytes)
                                 {
-                                    if (smtivDic.ContainsKey(c))
+                                    if (smtivDic.ContainsKey(c)) //If the dic has a char available in the string, replace it
                                     {
                                         editedDef_HW += smtivDic[c];
                                     }
-                                    else
+                                    else //If not, just construct the string like normal
                                     {
                                         editedDef_HW += c;
                                     }
                                 }
                                 
                             }
-                            
-                            int LocaleID = 0;
-                            string fwConv = Strings.StrConv(editedDef_HW, VbStrConv.Wide, LocaleID = 1041);
-                            editedSJISList.Add(fwConv);
+                            Console.WriteLine("Converting to Full-Width...");
+                            string regExSearch = "(<.*?>)";
+                            string fwConvString = "";
+                            string[] regExSplit = Regex.Split(editedDef_HW, regExSearch);
+                            foreach (string match in regExSplit)
+                            {
+                                Match m = Regex.Match(match, regExSearch);
+                                if (!m.Success)
+                                {
+                                    int LocaleID = 0;
+                                    string fwConv = Strings.StrConv(match, VbStrConv.Wide, LocaleID = 1041);
+                                    fwConvString += fwConv;
+                                    
+                                }
+                                else
+                                {
+                                    fwConvString += match;
+                                }
+                                
+                            }
+                            editedSJISList.Add(fwConvString);
+                            //int LocaleID = 0;
+                            //string fwConv = Strings.StrConv(editedDef_HW, VbStrConv.Wide, LocaleID = 1041); //Full-Width conversion
+                            //editedSJISList.Add(fwConv); 
                             Console.WriteLine("");
                             }
                             Console.ReadLine();
