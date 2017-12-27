@@ -16,6 +16,7 @@ namespace KUPConverter
     {
         static void Main(string[] args)
         {
+            System.Text.Encoding UTF8 = System.Text.Encoding.UTF8;
             System.Text.Encoding SJIS = System.Text.Encoding.GetEncoding(932);
             System.Text.Encoding Default = System.Text.Encoding.Default;
             List<string> originalList = new List<string>();
@@ -29,24 +30,25 @@ namespace KUPConverter
             string dir = Console.ReadLine();
             if (dir != "")
             {
-                    Console.WriteLine("Checking integrity...");
+                Console.WriteLine("Checking integrity...");
                     try
                     {
-                        foreach (var filefound in Directory.GetFiles(dir, "*.kup", SearchOption.AllDirectories))
-                        {
-                            XDocument file = XDocument.Load(filefound);
-                            Console.WriteLine("Integrity OK");
-                            Console.WriteLine("Deserializing content...");
-                            XElement fileRoot = file.Root;
-                            //LinQ lines by Artuvazro
-                            originalList = fileRoot.Descendants("original").Select(x => x.Value).ToList();
-                            editedList = fileRoot.Descendants("edited").Select(x => x.Value).ToList();
+                    foreach (var filefound in Directory.GetFiles(dir, "*.kup", SearchOption.AllDirectories))
+                    {
+                        XDocument file = XDocument.Load(filefound);
+                        string fileName = Path.GetFileName(filefound);
+                        Console.WriteLine("Integrity OK");
+                        Console.WriteLine("Deserializing content...");
+                        XElement fileRoot = file.Root;
+                        //LinQ lines by Artuvazro
+                        originalList = fileRoot.Descendants("original").Select(x => x.Value).ToList();
+                        editedList = fileRoot.Descendants("edited").Select(x => x.Value).ToList();
                         //for (int count = 0; count < original.Capacity; count++)
                         //{
                         //    Console.WriteLine(original[count]);
                         //    Console.WriteLine("");
                         //}
-                            var smtivDic = new Dictionary<char, char>
+                        var smtivDic = new Dictionary<char, char>
                             {
                                 { '\u00F1', '\u30F3' }, //ン from ñ
                                 { '\u00E4', '\u30D9' }, //ベ from ä
@@ -72,16 +74,13 @@ namespace KUPConverter
                                 { '\u00A1', '\u30D1' }, //パ from ¡
                                 { '\u00BF', '\u30D7' }, //プ from ¿
                             };
-                            Console.WriteLine("Replacing characters...");
-                            for (int count = 0; count < editedList.Capacity; count++)
-                            {
-                            
-                            byte[] editedDef_Bytes = Default.GetBytes(editedList[count]);
-                            string editedDef_String = Default.GetString(editedDef_Bytes);
+                        Console.WriteLine("Replacing characters...");
+                        
                             string editedDef_HW = "";
-                            for (int i = 0; i < 1; i++)
+                            foreach (var entry in editedList)
                             {
-                                foreach (char c in editedDef_Bytes)
+                                editedDef_HW = "";
+                                foreach (char c in entry)
                                 {
                                     if (smtivDic.ContainsKey(c)) //If the dic has a char available in the string, replace it
                                     {
@@ -92,37 +91,51 @@ namespace KUPConverter
                                         editedDef_HW += c;
                                     }
                                 }
-                                
-                            }
-                            Console.WriteLine("Converting to Full-Width...");
-                            string regExSearch = "(<.*?>)";
-                            string fwConvString = "";
-                            string[] regExSplit = Regex.Split(editedDef_HW, regExSearch);
-                            foreach (string match in regExSplit)
-                            {
-                                Match m = Regex.Match(match, regExSearch);
-                                if (!m.Success)
+
+
+
+                                Console.WriteLine("Converting to Full-Width...");
+                                string regExSearch = "(<.*?>)";
+                                string fwConvString = "";
+                                string[] regExSplit = Regex.Split(editedDef_HW, regExSearch);
+                                foreach (string match in regExSplit)
                                 {
-                                    int LocaleID = 0;
-                                    string fwConv = Strings.StrConv(match, VbStrConv.Wide, LocaleID = 1041);
-                                    fwConvString += fwConv;
-                                    
+                                    Match m = Regex.Match(match, regExSearch);
+                                    if (!m.Success)
+                                    {
+                                        int LocaleID = 0;
+                                        string fwConv = Strings.StrConv(match, VbStrConv.Wide, LocaleID = 1041);
+                                        fwConvString += fwConv;
+
+                                    }
+                                    else
+                                    {
+                                        fwConvString += match;
+                                    }
+
                                 }
-                                else
-                                {
-                                    fwConvString += match;
-                                }
-                                
+                                editedSJISList.Add(fwConvString);
                             }
-                            editedSJISList.Add(fwConvString);
                             //int LocaleID = 0;
                             //string fwConv = Strings.StrConv(editedDef_HW, VbStrConv.Wide, LocaleID = 1041); //Full-Width conversion
                             //editedSJISList.Add(fwConv); 
-                            Console.WriteLine("");
+
+
+
+                            for (int i = 1; i < editedSJISList.Count; i++)
+                            {
+                                fileRoot.Elements("entries").Descendants("entry").Where(e => e.Attribute("name").Value.Equals("Text " + i)).Select(e => e.Element("edited")).Single().SetValue(editedSJISList[i - 1]);
                             }
+                            Console.WriteLine("¡Archivo convertido con exito!");
                             Console.ReadLine();
-                        }
-                    }
+
+                            Directory.CreateDirectory(dir + "\\conv\\");
+                            file.Save(dir + "\\conv\\" + fileName, SaveOptions.None);
+                            
+                            
+                            }
+                    
+                    }   
                  
                     catch (Exception ex)
                     {
